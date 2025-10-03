@@ -23,8 +23,9 @@ export async function chatWithContext(
   });
 
   const vectorStore = await QdrantVectorStore.fromExistingCollection(embeddings, {
-    url: process.env.QDRANT_URL || "http://localhost:6333",
+    url: process.env.QDRANT_URL,
     collectionName: "granthX",
+    apiKey: process.env.QDRANT_API_KEY,
   });
 
   const retriever = vectorStore.asRetriever({ k: 3 });
