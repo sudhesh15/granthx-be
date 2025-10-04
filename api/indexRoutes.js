@@ -6,41 +6,47 @@ import { initIndexing } from '../services/indexService.js';
 
 const router = express.Router();
 
-// keep the default dest storage (ok!), we’ll rename after upload
-const upload = multer({ dest: 'uploads/' });
+const uploadDir = '/tmp/uploads';
+fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname) || '';
+    const safeBase =
+      path.basename(file.originalname, ext).replace(/[^\w.-]+/g, '_') || 'upload';
+    cb(null, `${Date.now()}-${safeBase}${ext.toLowerCase()}`);
+  }
+});
+
+const upload = multer({ storage });
 
 router.post('/upload', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
+
+  const filePath = req.file.path;
   try {
-    if (!req.file) throw new Error('No file uploaded');
-
-    const ext = path.extname(req.file.originalname).toLowerCase(); // ".pdf" | ".csv"
-    const typedPath = ext ? `${req.file.path}${ext}` : req.file.path;
-
-    // rename so loaders can detect type
-    fs.renameSync(req.file.path, typedPath);
-
     console.log('📩 /upload', {
       original: req.file.originalname,
-      savedAs: typedPath,
+      savedAs: filePath,
       mime: req.file.mimetype,
       size: req.file.size
     });
 
-    await initIndexing(typedPath);
-
-    // delete after successful indexing (your preference)
-    fs.unlinkSync(typedPath);
-
+    await initIndexing(filePath);
     res.json({ success: true, message: 'File indexed successfully' });
   } catch (error) {
     console.error('Upload index error:', error);
     res.status(500).json({ success: false, error: error.message });
+  } finally {
+    try { fs.unlinkSync(filePath); } catch {}
   }
 });
 
 router.post('/url-or-text', async (req, res) => {
   try {
     const { input } = req.body;
+    if (!input) return res.status(400).json({ success: false, error: 'Missing input' });
     console.log('📩 /url-or-text', input);
     await initIndexing(input);
     res.json({ success: true, message: 'Content indexed successfully' });
