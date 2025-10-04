@@ -1,32 +1,44 @@
 import 'dotenv/config';
-import express from "express";
-import cors from "cors";
-import path from "path";
-import { fileURLToPath } from "url";
+import express from 'express';
+import cors from 'cors';
 
-import indexRoutes from "./api/indexRoutes.js";
-import chatRoutes from "./api/chatRoutes.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import indexRoutes from './api/indexRoutes.js';
+import chatRoutes from './api/chatRoutes.js';
 
 const app = express();
-app.use(cors());
+
+app.use(
+  cors({
+    origin: [
+      'https://granthx.vercel.app',
+      'http://localhost:3000',
+    ],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
-// API routes
-app.use("/api/index", indexRoutes);
-app.use("/api/chat", chatRoutes);
+app.use('/api/index', indexRoutes);
+app.use('/api/chat', chatRoutes);
 
-// ✅ Serve frontend build folder
-app.use(express.static(path.join(__dirname, "../frontend/build")));
+app.get('/', (req, res) => {
+  res.json({ ok: true, name: 'GranthX API', env: process.env.NODE_ENV || 'development' });
+});
 
-// ✅ Catch-all (fix)
-app.get("/*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../frontend/build", "index.html"));
+
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: 'Server error' });
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => console.log(`🚀 API running on http://localhost:${PORT}`));
+}
+
+export default app;
