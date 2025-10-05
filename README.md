@@ -1,93 +1,136 @@
-GranthX Backend — README
-Overview
+# 📚 GranthX Backend
 
-Node/Express API powering GranthX.ai. Handles:
+Backend API for **GranthX.ai** – a GenAI-powered platform that turns documents, websites, and text into interactive conversations.  
+It handles **indexing, embeddings, and chat responses** by integrating with **Qdrant** (vector DB) and **Cerebras Cloud** (LLaMA 3.1-8B model).
 
-Content ingestion (PDF/CSV, YouTube transcripts, website crawl, pasted text)
+---
 
-Chunking + embeddings
+## ✨ Features
 
-Vector storage in Qdrant
+- **Indexing**
+  - Upload PDFs/CSVs for ingestion
+  - Provide URLs (websites, YouTube links) or raw text
+- **Vector Storage** with **Qdrant**
+- **Chat API** to ask questions grounded in indexed context
+- **Cerebras Cloud Integration** for LLaMA 3.1-8B inference
+- **Frontend Hosting**: Serves React build from `../frontend/build` if present
 
-Retrieval + answer generation via Cerebras (LLaMA 3.1-8B)
+---
 
-Tech
+## 🛠️ Tech Stack
 
-Node 18+
+- **Node.js 18+**
+- **Express.js**
+- **Multer** (for file uploads)
+- **Qdrant** (vector database)
+- **Cerebras Cloud API**
+- **dotenv**, **cors**
 
-Express
+---
 
-Qdrant (vector DB)
+## 📂 Project Structure
 
-Cerebras Cloud (inference)
+/api
+├── chatRoutes.js # POST /api/chat
+└── indexRoutes.js # POST /api/index/*
+/services
+├── chatService.js # chatWithContext(query)
+└── indexService.js # initIndexing(input)
+server.js # app bootstrap & static hosting
 
-Prerequisites
+yaml
+Copy code
 
-Node 18+
+---
 
-Running Qdrant instance (local or cloud)
+## ⚙️ Environment Variables
 
-Environment
+Create a `.env` file in the project root:
 
-Create .env in the project root:
+```env
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=
+CEREBRAS_API_KEY=your_cerebras_api_key
+PORT=5000
+QDRANT_URL → Local (http://localhost:6333) or Cloud (https://<cluster>.cloud.qdrant.io)
 
-QDRANT_URL=https://YOUR-QDRANT-URL
-QDRANT_API_KEY=YOUR_QDRANT_API_KEY
-CEREBRAS_API_KEY=YOUR_CEREBRAS_API_KEY
+QDRANT_API_KEY → Required for cloud; empty for local
 
+CEREBRAS_API_KEY → From Cerebras Cloud dashboard
 
-If you also use local Qdrant: QDRANT_URL=http://localhost:6333 and leave QDRANT_API_KEY empty if not required.
+PORT → Defaults to 5000
 
-Install & Run
+🔒 Do not commit .env to git.
+
+🚀 Run Locally
+bash
+Copy code
+# Install dependencies
 npm install
-npm run dev     # if you have nodemon
-# or
-npm start       # production start
 
+# Run in dev (with nodemon if available)
+npm run dev
 
-Default server port is typically 5000 (update PORT in your code if needed).
+# Run in production
+npm start
+API available at: http://localhost:5000
 
-Typical Endpoints (example)
+🔌 API Endpoints
+📤 1. Upload File (PDF/CSV)
+POST /api/index/upload
+Upload and index a document.
 
-Adjust to match your routes if names differ.
+Body: multipart/form-data with field file
 
-POST /api/index/upload — upload PDF/CSV
+Example
 
-POST /api/index/youtube — add by YouTube URL (fetch transcript)
+bash
+Copy code
+curl -X POST http://localhost:5000/api/index/upload \
+  -F "file=@/path/to/document.pdf"
+Response
 
-POST /api/index/website — crawl site and index content
+json
+Copy code
+{ "success": true, "message": "File indexed successfully" }
+🌐 2. Index URL or Raw Text
+POST /api/index/url-or-text
 
-POST /api/index/text — index raw pasted text
+Body: JSON
 
-POST /api/chat — body: { query: "..." } → answer + sources
+json
+Copy code
+{ "input": "https://example.com/docs" }
+or
 
-Example (cURL)
-curl -X POST "$API_BASE/api/chat" \
+json
+Copy code
+{ "input": "Paste plain text directly here" }
+Response
+
+json
+Copy code
+{ "success": true, "message": "Content indexed successfully" }
+💬 3. Chat with Context
+POST /api/chat
+
+Body: JSON
+
+json
+Copy code
+{ "query": "What does the pricing page say?" }
+Response
+
+json
+Copy code
+{
+  "success": true,
+  "response": "Your context-aware answer here..."
+}
+Example
+
+bash
+Copy code
+curl -X POST http://localhost:5000/api/chat \
   -H "Content-Type: application/json" \
-  -d '{"query":"What does the docs say about pricing?"}'
-
-Deployment Notes
-
-Local Dev: ensure Qdrant is reachable (cloud or local 6333).
-
-CORS: allow your frontend origin (e.g., http://localhost:3000 or your production domain).
-
-File Uploads: if using serverless (e.g., Vercel), prefer diskless/streamed upload or use /tmp with size limits.
-
-Env on Hosts: set QDRANT_URL, QDRANT_API_KEY, CEREBRAS_API_KEY in the host dashboard.
-
-Troubleshooting
-
-401/403 on Qdrant: verify API key and URL scheme (https:// for cloud).
-
-Model errors: check CEREBRAS_API_KEY and model name/version used in code.
-
-Time-outs on large crawls: add sensible crawl depth/rate limits and timeouts.
-
-Security
-
-Never commit .env.
-
-Validate and sanitize URLs for crawls.
-
-Limit file size/types on upload.
+  -d '{"query":"Summarize the docs index."}'
